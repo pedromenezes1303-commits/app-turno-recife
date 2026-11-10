@@ -11,9 +11,10 @@
         .logo-area h1 { font-size: 18px; margin: 0; display: flex; align-items: center; gap: 10px; }
         .badge { background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
         .saldo { font-size: 32px; font-weight: bold; color: #2e7d32; margin: 5px 0; }
+        .saldo.negativo { color: #d32f2f; }
         .resumo { display: flex; justify-content: space-between; font-size: 14px; color: #666; margin-bottom: 10px; }
         .progress-bar { width: 100%; background: #e0e0e0; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
-        .progress-fill { background: #2e7d32; height: 100%; width: 0%; }
+        .progress-fill { background: #2e7d32; height: 100%; width: 0%; transition: width 0.3s; }
         .meta-text { display: flex; justify-content: space-between; font-size: 12px; color: #666; }
         
         .nav { display: flex; overflow-x: auto; background: #fff; padding: 10px; gap: 10px; border-bottom: 1px solid #eee; }
@@ -31,7 +32,13 @@
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-size: 14px; color: #666; font-weight: bold; }
         input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        .btn-primary { width: 100%; padding: 15px; background: #1a237e; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        .btn-primary { width: 100%; padding: 15px; background: #1a237e; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        
+        .lista-itens { list-style: none; padding: 0; margin: 0; }
+        .lista-itens li { background: #fff; padding: 12px 15px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .item-nome { font-size: 14px; font-weight: bold; }
+        .item-valor { font-size: 14px; color: #d32f2f; font-weight: bold; }
+        .btn-excluir { background: #ffebee; color: #d32f2f; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -41,15 +48,15 @@
             <h1>🚲 ROTA <span style="font-weight: normal; color: #666; font-size: 14px;">Controle Financeiro</span></h1>
             <span class="badge">Interativo</span>
         </div>
-        <div style="font-size: 12px; color: #666;">RESULTADO LÍQUIDO ACUMULADO</div>
+        <div style="font-size: 12px; color: #666;">SALDO CAIXA (LUCRO - INVESTIMENTOS)</div>
         <div class="saldo" id="lbl-saldo">R$ 0,00</div>
         <div class="resumo">
-            <span id="lbl-fat">Faturamento: R$ 0,00</span>
-            <span id="lbl-custos">Custos: R$ 0,00</span>
+            <span id="lbl-fat">Lucro Op.: R$ 0,00</span>
+            <span id="lbl-custos">Equipamentos: R$ 0,00</span>
         </div>
         <div class="progress-bar"><div class="progress-fill" id="bar-meta"></div></div>
         <div class="meta-text">
-            <span id="lbl-meta">Meta: R$ 500,00</span>
+            <span id="lbl-meta">Meta Líquida: R$ 500,00</span>
             <span id="lbl-porcentagem">0% atingido</span>
         </div>
     </div>
@@ -57,6 +64,7 @@
     <div class="nav">
         <button class="active" onclick="mudarAba('painel', this)">Painel</button>
         <button onclick="mudarAba('lancar', this)">Lançar turno</button>
+        <button onclick="mudarAba('investimentos', this)">Investimentos</button>
         <button onclick="mudarAba('ajustes', this)">Ajustes</button>
     </div>
 
@@ -64,35 +72,27 @@
     <div id="painel" class="content active">
         <div class="grid">
             <div class="card">
-                <div class="card-title">Ganhos Uber/99</div>
-                <div class="card-value" id="card-fat">R$ 0,00</div>
+                <div class="card-title">Ganhos Brutos</div>
+                <div class="card-value" id="card-fat" style="color: #2e7d32;">R$ 0,00</div>
             </div>
             <div class="card">
-                <div class="card-title">Custo Estimado</div>
-                <div class="card-value" id="card-custos">R$ 0,00</div>
+                <div class="card-title">Gasolina + Manut.</div>
+                <div class="card-value" id="card-custos" style="color: #d32f2f;">R$ 0,00</div>
             </div>
             <div class="card">
                 <div class="card-title">Quilometragem</div>
                 <div class="card-value" id="card-km">0 km</div>
             </div>
             <div class="card">
-                <div class="card-title">Reserva Manutenção</div>
-                <div class="card-value" id="card-manutencao">R$ 0,00</div>
+                <div class="card-title">Lucro Operacional</div>
+                <div class="card-value" id="card-lucro-op">R$ 0,00</div>
             </div>
         </div>
-        <button class="btn-primary" style="background: #d32f2f;" onclick="zerarDados()">Zerar Mês</button>
+        <button class="btn-primary" style="background: #d32f2f;" onclick="zerarGanhos()">Zerar Mês (Ganhos/Km)</button>
     </div>
 
     <!-- ABA LANÇAR TURNO -->
     <div id="lancar" class="content">
-        <div class="form-group">
-            <label>Aplicativo Principal</label>
-            <select id="app-corrida">
-                <option value="Ambos">Ambos (Uber e 99)</option>
-                <option value="Uber">Uber Moto</option>
-                <option value="99">99 Moto</option>
-            </select>
-        </div>
         <div class="form-group">
             <label>Faturamento do Turno (R$)</label>
             <input type="number" id="input-fat" placeholder="Ex: 85.50">
@@ -104,60 +104,130 @@
         <button class="btn-primary" onclick="salvarTurno()">Salvar Turno</button>
     </div>
 
+    <!-- ABA INVESTIMENTOS (NOVA) -->
+    <div id="investimentos" class="content">
+        <div class="card" style="margin-bottom: 20px; background: #e8f5e9; border-color: #a5d6a7;">
+            <div class="card-title" style="color: #2e7d32;">Status do Investimento</div>
+            <div class="card-value" id="status-roi" style="font-size: 16px; margin-top: 5px;">Calculando...</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Novo Equipamento (Ex: Adaptador USB)</label>
+            <input type="text" id="inv-nome" placeholder="Nome do item">
+        </div>
+        <div class="form-group">
+            <label>Custo (R$)</label>
+            <input type="number" id="inv-valor" placeholder="Ex: 45.00">
+        </div>
+        <button class="btn-primary" style="margin-bottom: 20px;" onclick="adicionarInvestimento()">Adicionar Equipamento</button>
+        
+        <label>Seus Investimentos</label>
+        <ul id="lista-investimentos" class="lista-itens"></ul>
+    </div>
+
     <!-- ABA AJUSTES -->
     <div id="ajustes" class="content">
-        <p style="font-size: 14px; color: #666;">Os valores abaixo alimentam os cálculos de todos os turnos.</p>
         <div class="form-group">
             <label>Preço da Gasolina (R$/L)</label>
-            <input type="number" id="cfg-gasolina" value="5.85">
+            <input type="number" id="cfg-gasolina">
         </div>
         <div class="form-group">
             <label>Consumo da Moto (km/L)</label>
-            <input type="number" id="cfg-consumo" value="35">
+            <input type="number" id="cfg-consumo">
         </div>
         <div class="form-group">
             <label>Reserva de Manutenção (R$/km)</label>
-            <input type="number" id="cfg-manutencao" value="0.10">
+            <input type="number" id="cfg-manutencao">
         </div>
         <div class="form-group">
-            <label>Meta Líquida Mensal (R$)</label>
-            <input type="number" id="cfg-meta" value="500">
+            <label>Meta de Lucro Mensal (R$)</label>
+            <input type="number" id="cfg-meta">
         </div>
         <button class="btn-primary" onclick="salvarAjustes()">Salvar Configurações</button>
     </div>
 
     <script>
-        // Dados iniciais
         let dados = JSON.parse(localStorage.getItem('rotaDados')) || {
             faturamento: 0, km: 0, 
-            cfgGasolina: 5.85, cfgConsumo: 35, cfgManutencao: 0.10, cfgMeta: 500
+            cfgGasolina: 5.85, cfgConsumo: 35, cfgManutencao: 0.10, cfgMeta: 500,
+            investimentos: []
         };
 
+        // Garante que usuários que já usavam o app ganhem a array de investimentos sem bugar
+        if(!dados.investimentos) dados.investimentos = [];
+
         function atualizarTela() {
+            // Custos diários da operação
             let custoGasolina = (dados.km / dados.cfgConsumo) * dados.cfgGasolina;
             let custoManutencao = dados.km * dados.cfgManutencao;
-            let custoTotal = custoGasolina + custoManutencao;
-            let lucroLiquido = dados.faturamento - custoTotal;
-            let porcentagemMeta = Math.min((lucroLiquido / dados.cfgMeta) * 100, 100);
+            let custoOperacional = custoGasolina + custoManutencao;
+            
+            // Lucro gerado só rodando
+            let lucroOperacional = dados.faturamento - custoOperacional;
+            
+            // Soma dos equipamentos comprados
+            let totalInvestido = dados.investimentos.reduce((acc, curr) => acc + curr.valor, 0);
+            
+            // O dinheiro que de fato sobrou no seu bolso
+            let saldoCaixa = lucroOperacional - totalInvestido;
+            
+            // Calcula o avanço da meta (baseado no saldo real de caixa)
+            let porcentagemMeta = Math.min((saldoCaixa / dados.cfgMeta) * 100, 100);
             if(porcentagemMeta < 0) porcentagemMeta = 0;
 
-            // Formatação
             const mo = (v) => "R$ " + v.toFixed(2).replace('.', ',');
 
-            document.getElementById('lbl-saldo').innerText = mo(lucroLiquido);
-            document.getElementById('lbl-fat').innerText = "Faturamento: " + mo(dados.faturamento);
-            document.getElementById('lbl-custos').innerText = "Custos: " + mo(custoTotal);
+            // Atualiza Topo
+            let lblSaldo = document.getElementById('lbl-saldo');
+            lblSaldo.innerText = mo(saldoCaixa);
+            if (saldoCaixa < 0) {
+                lblSaldo.classList.add('negativo');
+            } else {
+                lblSaldo.classList.remove('negativo');
+            }
             
+            document.getElementById('lbl-fat').innerText = "Lucro Op.: " + mo(lucroOperacional);
+            document.getElementById('lbl-custos').innerText = "Equipamentos: " + mo(totalInvestido);
             document.getElementById('bar-meta').style.width = porcentagemMeta + "%";
-            document.getElementById('lbl-meta').innerText = "Meta: " + mo(parseFloat(dados.cfgMeta));
+            document.getElementById('lbl-meta').innerText = "Meta Líquida: " + mo(parseFloat(dados.cfgMeta));
             document.getElementById('lbl-porcentagem').innerText = porcentagemMeta.toFixed(0) + "% atingido";
 
+            // Atualiza Painel
             document.getElementById('card-fat').innerText = mo(dados.faturamento);
-            document.getElementById('card-custos').innerText = mo(custoTotal);
+            document.getElementById('card-custos').innerText = mo(custoOperacional);
             document.getElementById('card-km').innerText = dados.km.toFixed(1).replace('.', ',') + " km";
-            document.getElementById('card-manutencao').innerText = mo(custoManutencao);
+            document.getElementById('card-lucro-op').innerText = mo(lucroOperacional);
 
-            // Preenche os inputs de ajustes
+            // Atualiza ROI na aba Investimentos
+            let statusRoi = document.getElementById('status-roi');
+            if (totalInvestido === 0) {
+                statusRoi.innerText = "Nenhum investimento registrado.";
+                statusRoi.style.color = "#666";
+            } else if (saldoCaixa < 0) {
+                let falta = Math.abs(saldoCaixa);
+                statusRoi.innerText = "Faltam " + mo(falta) + " para recuperar o valor investido.";
+                statusRoi.style.color = "#d32f2f";
+            } else {
+                statusRoi.innerText = "Investimentos 100% pagos! Caixa livre de " + mo(saldoCaixa) + ".";
+                statusRoi.style.color = "#2e7d32";
+            }
+
+            // Renderiza lista de investimentos
+            let lista = document.getElementById('lista-investimentos');
+            lista.innerHTML = "";
+            dados.investimentos.forEach((inv, index) => {
+                let li = document.createElement('li');
+                li.innerHTML = `
+                    <div>
+                        <div class="item-nome">${inv.nome}</div>
+                        <div class="item-valor">${mo(inv.valor)}</div>
+                    </div>
+                    <button class="btn-excluir" onclick="removerInvestimento(${index})">X</button>
+                `;
+                lista.appendChild(li);
+            });
+
+            // Preenche ajustes
             document.getElementById('cfg-gasolina').value = dados.cfgGasolina;
             document.getElementById('cfg-consumo').value = dados.cfgConsumo;
             document.getElementById('cfg-manutencao').value = dados.cfgManutencao;
@@ -167,18 +237,33 @@
         function salvarTurno() {
             let fat = parseFloat(document.getElementById('input-fat').value.replace(',', '.'));
             let km = parseFloat(document.getElementById('input-km').value.replace(',', '.'));
-
             if(isNaN(fat) || isNaN(km)) { alert("Preencha faturamento e km."); return; }
-
             dados.faturamento += fat;
             dados.km += km;
-            
             localStorage.setItem('rotaDados', JSON.stringify(dados));
             document.getElementById('input-fat').value = "";
             document.getElementById('input-km').value = "";
-            
             atualizarTela();
-            alert("Turno salvo com sucesso!");
+            mudarAba('painel', document.querySelector('.nav button'));
+        }
+
+        function adicionarInvestimento() {
+            let nome = document.getElementById('inv-nome').value;
+            let valor = parseFloat(document.getElementById('inv-valor').value.replace(',', '.'));
+            if(nome.trim() === "" || isNaN(valor)) { alert("Preencha o nome e o valor do equipamento."); return; }
+            dados.investimentos.push({ nome: nome, valor: valor });
+            localStorage.setItem('rotaDados', JSON.stringify(dados));
+            document.getElementById('inv-nome').value = "";
+            document.getElementById('inv-valor').value = "";
+            atualizarTela();
+        }
+
+        function removerInvestimento(index) {
+            if(confirm("Remover este equipamento da lista?")) {
+                dados.investimentos.splice(index, 1);
+                localStorage.setItem('rotaDados', JSON.stringify(dados));
+                atualizarTela();
+            }
         }
 
         function salvarAjustes() {
@@ -186,14 +271,13 @@
             dados.cfgConsumo = parseFloat(document.getElementById('cfg-consumo').value);
             dados.cfgManutencao = parseFloat(document.getElementById('cfg-manutencao').value);
             dados.cfgMeta = parseFloat(document.getElementById('cfg-meta').value);
-            
             localStorage.setItem('rotaDados', JSON.stringify(dados));
             atualizarTela();
-            alert("Configurações atualizadas!");
+            alert("Configurações salvas!");
         }
 
-        function zerarDados() {
-            if(confirm("Tem certeza que deseja zerar os ganhos do mês? As configurações serão mantidas.")) {
+        function zerarGanhos() {
+            if(confirm("Tem certeza? Isso zera seus ganhos e km do mês, mas mantém seus investimentos e configurações.")) {
                 dados.faturamento = 0;
                 dados.km = 0;
                 localStorage.setItem('rotaDados', JSON.stringify(dados));
@@ -208,7 +292,6 @@
             btn.classList.add('active');
         }
 
-        // Inicia o app
         atualizarTela();
     </script>
 </body>
