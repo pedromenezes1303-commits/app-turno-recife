@@ -3,79 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meu Turno</title>
+    <title>ROTA - Controle</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #ffffff; padding: 20px; margin: 0; }
-        h2 { text-align: center; color: #00e676; margin-bottom: 20px; }
-        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        label { display: block; margin-bottom: 8px; color: #bbbbbb; font-size: 14px; }
-        input { width: 100%; padding: 15px; margin-bottom: 20px; border: none; border-radius: 8px; background: #2c2c2c; color: #fff; font-size: 16px; box-sizing: border-box; }
-        input:focus { outline: 2px solid #00e676; }
-        button { width: 100%; padding: 15px; background: #00e676; color: #000; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; }
-        button:active { background: #00c853; }
-        .resultado { text-align: center; padding: 20px; border-radius: 12px; display: none; margin-top: 20px; }
-        .positivo { background: rgba(0, 230, 118, 0.1); border: 2px solid #00e676; }
-        .negativo { background: rgba(255, 82, 82, 0.1); border: 2px solid #ff5252; }
-        .valor-destaque { font-size: 28px; font-weight: bold; margin: 10px 0; }
+        body { font-family: -apple-system, sans-serif; background-color: #fafafa; color: #333; margin: 0; padding: 0; }
+        .header { background: #fff; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .logo-area { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .logo-area h1 { font-size: 18px; margin: 0; display: flex; align-items: center; gap: 10px; }
+        .badge { background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .saldo { font-size: 32px; font-weight: bold; color: #2e7d32; margin: 5px 0; }
+        .resumo { display: flex; justify-content: space-between; font-size: 14px; color: #666; margin-bottom: 10px; }
+        .progress-bar { width: 100%; background: #e0e0e0; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
+        .progress-fill { background: #2e7d32; height: 100%; width: 0%; }
+        .meta-text { display: flex; justify-content: space-between; font-size: 12px; color: #666; }
+        
+        .nav { display: flex; overflow-x: auto; background: #fff; padding: 10px; gap: 10px; border-bottom: 1px solid #eee; }
+        .nav button { padding: 8px 16px; border: none; background: transparent; color: #666; font-weight: bold; border-radius: 20px; cursor: pointer; white-space: nowrap; }
+        .nav button.active { background: #f0f0f0; color: #000; }
+        
+        .content { padding: 20px; display: none; }
+        .content.active { display: block; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #eee; }
+        .card-title { font-size: 12px; color: #666; margin-bottom: 5px; }
+        .card-value { font-size: 18px; font-weight: bold; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; color: #666; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        .btn-primary { width: 100%; padding: 15px; background: #1a237e; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <h2>Fechamento de Turno</h2>
-
-    <div class="card">
-        <label for="km">Quilômetros Rodados (Km)</label>
-        <input type="number" id="km" placeholder="Ex: 65" inputmode="decimal">
-
-        <label for="ganhos">Ganhos Totais (R$)</label>
-        <input type="number" id="ganhos" placeholder="Ex: 110.50" inputmode="decimal">
-
-        <label for="combustivel">Gasto na Bomba (R$)</label>
-        <input type="number" id="combustivel" placeholder="Ex: 12.00" inputmode="decimal">
-
-        <button onclick="calcularFechamento()">Calcular Lucro</button>
+    <div class="header">
+        <div class="logo-area">
+            <h1>🚲 ROTA <span style="font-weight: normal; color: #666; font-size: 14px;">Controle Financeiro</span></h1>
+            <span class="badge">Interativo</span>
+        </div>
+        <div style="font-size: 12px; color: #666;">RESULTADO LÍQUIDO ACUMULADO</div>
+        <div class="saldo" id="lbl-saldo">R$ 0,00</div>
+        <div class="resumo">
+            <span id="lbl-fat">Faturamento: R$ 0,00</span>
+            <span id="lbl-custos">Custos: R$ 0,00</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="bar-meta"></div></div>
+        <div class="meta-text">
+            <span id="lbl-meta">Meta: R$ 500,00</span>
+            <span id="lbl-porcentagem">0% atingido</span>
+        </div>
     </div>
 
-    <div id="painel-resultado" class="resultado">
-        <p style="margin: 0; color: #bbb;">Lucro Líquido</p>
-        <div id="lucro" class="valor-destaque"></div>
-        <p style="margin: 10px 0 0 0; color: #bbb;">Rendimento por Km</p>
-        <div id="rendimento" style="font-size: 20px; font-weight: bold;"></div>
-        <p id="mensagem" style="margin-top: 15px; font-weight: bold;"></p>
+    <div class="nav">
+        <button class="active" onclick="mudarAba('painel', this)">Painel</button>
+        <button onclick="mudarAba('lancar', this)">Lançar turno</button>
+        <button onclick="mudarAba('ajustes', this)">Ajustes</button>
+    </div>
+
+    <!-- ABA PAINEL -->
+    <div id="painel" class="content active">
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">Ganhos Uber/99</div>
+                <div class="card-value" id="card-fat">R$ 0,00</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Custo Estimado</div>
+                <div class="card-value" id="card-custos">R$ 0,00</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Quilometragem</div>
+                <div class="card-value" id="card-km">0 km</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Reserva Manutenção</div>
+                <div class="card-value" id="card-manutencao">R$ 0,00</div>
+            </div>
+        </div>
+        <button class="btn-primary" style="background: #d32f2f;" onclick="zerarDados()">Zerar Mês</button>
+    </div>
+
+    <!-- ABA LANÇAR TURNO -->
+    <div id="lancar" class="content">
+        <div class="form-group">
+            <label>Aplicativo Principal</label>
+            <select id="app-corrida">
+                <option value="Ambos">Ambos (Uber e 99)</option>
+                <option value="Uber">Uber Moto</option>
+                <option value="99">99 Moto</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Faturamento do Turno (R$)</label>
+            <input type="number" id="input-fat" placeholder="Ex: 85.50">
+        </div>
+        <div class="form-group">
+            <label>Km Rodados</label>
+            <input type="number" id="input-km" placeholder="Ex: 50">
+        </div>
+        <button class="btn-primary" onclick="salvarTurno()">Salvar Turno</button>
+    </div>
+
+    <!-- ABA AJUSTES -->
+    <div id="ajustes" class="content">
+        <p style="font-size: 14px; color: #666;">Os valores abaixo alimentam os cálculos de todos os turnos.</p>
+        <div class="form-group">
+            <label>Preço da Gasolina (R$/L)</label>
+            <input type="number" id="cfg-gasolina" value="5.85">
+        </div>
+        <div class="form-group">
+            <label>Consumo da Moto (km/L)</label>
+            <input type="number" id="cfg-consumo" value="35">
+        </div>
+        <div class="form-group">
+            <label>Reserva de Manutenção (R$/km)</label>
+            <input type="number" id="cfg-manutencao" value="0.10">
+        </div>
+        <div class="form-group">
+            <label>Meta Líquida Mensal (R$)</label>
+            <input type="number" id="cfg-meta" value="500">
+        </div>
+        <button class="btn-primary" onclick="salvarAjustes()">Salvar Configurações</button>
     </div>
 
     <script>
-        function calcularFechamento() {
-            let km = parseFloat(document.getElementById('km').value.replace(',', '.'));
-            let ganhos = parseFloat(document.getElementById('ganhos').value.replace(',', '.'));
-            let combustivel = parseFloat(document.getElementById('combustivel').value.replace(',', '.'));
+        // Dados iniciais
+        let dados = JSON.parse(localStorage.getItem('rotaDados')) || {
+            faturamento: 0, km: 0, 
+            cfgGasolina: 5.85, cfgConsumo: 35, cfgManutencao: 0.10, cfgMeta: 500
+        };
 
-            if(isNaN(km) || isNaN(ganhos) || isNaN(combustivel) || km <= 0) {
-                alert("Preencha todos os campos corretamente.");
-                return;
-            }
+        function atualizarTela() {
+            let custoGasolina = (dados.km / dados.cfgConsumo) * dados.cfgGasolina;
+            let custoManutencao = dados.km * dados.cfgManutencao;
+            let custoTotal = custoGasolina + custoManutencao;
+            let lucroLiquido = dados.faturamento - custoTotal;
+            let porcentagemMeta = Math.min((lucroLiquido / dados.cfgMeta) * 100, 100);
+            if(porcentagemMeta < 0) porcentagemMeta = 0;
 
-            let lucroLiquido = ganhos - combustivel;
-            let rendimentoKm = lucroLiquido / km;
+            // Formatação
+            const mo = (v) => "R$ " + v.toFixed(2).replace('.', ',');
 
-            document.getElementById('lucro').innerText = "R$ " + lucroLiquido.toFixed(2).replace('.', ',');
-            document.getElementById('rendimento').innerText = "R$ " + rendimentoKm.toFixed(2).replace('.', ',') + " / km";
+            document.getElementById('lbl-saldo').innerText = mo(lucroLiquido);
+            document.getElementById('lbl-fat').innerText = "Faturamento: " + mo(dados.faturamento);
+            document.getElementById('lbl-custos').innerText = "Custos: " + mo(custoTotal);
+            
+            document.getElementById('bar-meta').style.width = porcentagemMeta + "%";
+            document.getElementById('lbl-meta').innerText = "Meta: " + mo(parseFloat(dados.cfgMeta));
+            document.getElementById('lbl-porcentagem').innerText = porcentagemMeta.toFixed(0) + "% atingido";
 
-            let painel = document.getElementById('painel-resultado');
-            let mensagem = document.getElementById('mensagem');
-            painel.style.display = "block";
+            document.getElementById('card-fat').innerText = mo(dados.faturamento);
+            document.getElementById('card-custos').innerText = mo(custoTotal);
+            document.getElementById('card-km').innerText = dados.km.toFixed(1).replace('.', ',') + " km";
+            document.getElementById('card-manutencao').innerText = mo(custoManutencao);
 
-            // Se o lucro for maior que R$ 1,00 por km, é um turno excelente para a Crosser.
-            if(rendimentoKm >= 1.00) {
-                painel.className = "resultado positivo";
-                mensagem.innerText = "✅ Turno Altamente Lucrativo!";
-                mensagem.style.color = "#00e676";
-            } else {
-                painel.className = "resultado negativo";
-                mensagem.innerText = "⚠️ Rendimento abaixo do ideal.";
-                mensagem.style.color = "#ff5252";
+            // Preenche os inputs de ajustes
+            document.getElementById('cfg-gasolina').value = dados.cfgGasolina;
+            document.getElementById('cfg-consumo').value = dados.cfgConsumo;
+            document.getElementById('cfg-manutencao').value = dados.cfgManutencao;
+            document.getElementById('cfg-meta').value = dados.cfgMeta;
+        }
+
+        function salvarTurno() {
+            let fat = parseFloat(document.getElementById('input-fat').value.replace(',', '.'));
+            let km = parseFloat(document.getElementById('input-km').value.replace(',', '.'));
+
+            if(isNaN(fat) || isNaN(km)) { alert("Preencha faturamento e km."); return; }
+
+            dados.faturamento += fat;
+            dados.km += km;
+            
+            localStorage.setItem('rotaDados', JSON.stringify(dados));
+            document.getElementById('input-fat').value = "";
+            document.getElementById('input-km').value = "";
+            
+            atualizarTela();
+            alert("Turno salvo com sucesso!");
+        }
+
+        function salvarAjustes() {
+            dados.cfgGasolina = parseFloat(document.getElementById('cfg-gasolina').value);
+            dados.cfgConsumo = parseFloat(document.getElementById('cfg-consumo').value);
+            dados.cfgManutencao = parseFloat(document.getElementById('cfg-manutencao').value);
+            dados.cfgMeta = parseFloat(document.getElementById('cfg-meta').value);
+            
+            localStorage.setItem('rotaDados', JSON.stringify(dados));
+            atualizarTela();
+            alert("Configurações atualizadas!");
+        }
+
+        function zerarDados() {
+            if(confirm("Tem certeza que deseja zerar os ganhos do mês? As configurações serão mantidas.")) {
+                dados.faturamento = 0;
+                dados.km = 0;
+                localStorage.setItem('rotaDados', JSON.stringify(dados));
+                atualizarTela();
             }
         }
+
+        function mudarAba(idAba, btn) {
+            document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
+            document.getElementById(idAba).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        // Inicia o app
+        atualizarTela();
     </script>
 </body>
 </html>
