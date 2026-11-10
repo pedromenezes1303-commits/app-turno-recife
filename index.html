@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meu Turno</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #ffffff; padding: 20px; margin: 0; }
+        h2 { text-align: center; color: #00e676; margin-bottom: 20px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        label { display: block; margin-bottom: 8px; color: #bbbbbb; font-size: 14px; }
+        input { width: 100%; padding: 15px; margin-bottom: 20px; border: none; border-radius: 8px; background: #2c2c2c; color: #fff; font-size: 16px; box-sizing: border-box; }
+        input:focus { outline: 2px solid #00e676; }
+        button { width: 100%; padding: 15px; background: #00e676; color: #000; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; }
+        button:active { background: #00c853; }
+        .resultado { text-align: center; padding: 20px; border-radius: 12px; display: none; margin-top: 20px; }
+        .positivo { background: rgba(0, 230, 118, 0.1); border: 2px solid #00e676; }
+        .negativo { background: rgba(255, 82, 82, 0.1); border: 2px solid #ff5252; }
+        .valor-destaque { font-size: 28px; font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+    <h2>Fechamento de Turno</h2>
+
+    <div class="card">
+        <label for="km">Quilômetros Rodados (Km)</label>
+        <input type="number" id="km" placeholder="Ex: 65" inputmode="decimal">
+
+        <label for="ganhos">Ganhos Totais (R$)</label>
+        <input type="number" id="ganhos" placeholder="Ex: 110.50" inputmode="decimal">
+
+        <label for="combustivel">Gasto na Bomba (R$)</label>
+        <input type="number" id="combustivel" placeholder="Ex: 12.00" inputmode="decimal">
+
+        <button onclick="calcularFechamento()">Calcular Lucro</button>
+    </div>
+
+    <div id="painel-resultado" class="resultado">
+        <p style="margin: 0; color: #bbb;">Lucro Líquido</p>
+        <div id="lucro" class="valor-destaque"></div>
+        <p style="margin: 10px 0 0 0; color: #bbb;">Rendimento por Km</p>
+        <div id="rendimento" style="font-size: 20px; font-weight: bold;"></div>
+        <p id="mensagem" style="margin-top: 15px; font-weight: bold;"></p>
+    </div>
+
+    <script>
+        function calcularFechamento() {
+            let km = parseFloat(document.getElementById('km').value.replace(',', '.'));
+            let ganhos = parseFloat(document.getElementById('ganhos').value.replace(',', '.'));
+            let combustivel = parseFloat(document.getElementById('combustivel').value.replace(',', '.'));
+
+            if(isNaN(km) || isNaN(ganhos) || isNaN(combustivel) || km <= 0) {
+                alert("Preencha todos os campos corretamente.");
+                return;
+            }
+
+            let lucroLiquido = ganhos - combustivel;
+            let rendimentoKm = lucroLiquido / km;
+
+            document.getElementById('lucro').innerText = "R$ " + lucroLiquido.toFixed(2).replace('.', ',');
+            document.getElementById('rendimento').innerText = "R$ " + rendimentoKm.toFixed(2).replace('.', ',') + " / km";
+
+            let painel = document.getElementById('painel-resultado');
+            let mensagem = document.getElementById('mensagem');
+            painel.style.display = "block";
+
+            // Se o lucro for maior que R$ 1,00 por km, é um turno excelente para a Crosser.
+            if(rendimentoKm >= 1.00) {
+                painel.className = "resultado positivo";
+                mensagem.innerText = "✅ Turno Altamente Lucrativo!";
+                mensagem.style.color = "#00e676";
+            } else {
+                painel.className = "resultado negativo";
+                mensagem.innerText = "⚠️ Rendimento abaixo do ideal.";
+                mensagem.style.color = "#ff5252";
+            }
+        }
+    </script>
+</body>
+</html>
