@@ -17,7 +17,6 @@
         .progress-fill { background: #2e7d32; height: 100%; width: 0%; transition: width 0.3s; }
         .meta-text { display: flex; justify-content: space-between; font-size: 12px; color: #666; }
         
-        /* Menu com barra de rolagem horizontal invisível */
         .nav { display: flex; overflow-x: auto; background: #fff; padding: 10px; gap: 10px; border-bottom: 1px solid #eee; white-space: nowrap; -webkit-overflow-scrolling: touch; }
         .nav::-webkit-scrollbar { display: none; }
         .nav button { padding: 8px 16px; border: none; background: transparent; color: #666; font-weight: bold; border-radius: 20px; cursor: pointer; flex-shrink: 0; }
@@ -42,7 +41,6 @@
         .item-valor { font-size: 14px; color: #d32f2f; font-weight: bold; }
         .btn-excluir { background: #ffebee; color: #d32f2f; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
         
-        /* Estilos do Histórico */
         .history-card { background: #fff; padding: 15px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
         .history-header { display: flex; justify-content: space-between; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; margin-bottom: 8px; font-size: 14px; }
         .history-body { display: flex; justify-content: space-between; font-size: 13px; color: #666; }
@@ -69,7 +67,7 @@
         </div>
     </div>
 
-    <!-- Navegação rolável lateralmente -->
+    <!-- Navegação -->
     <div class="nav">
         <button class="active" onclick="mudarAba('painel', this)">Painel</button>
         <button onclick="mudarAba('lancar', this)">Lançar</button>
@@ -122,7 +120,7 @@
         <button class="btn-primary" onclick="salvarTurno()">Salvar Turno</button>
     </div>
 
-    <!-- ABA HISTÓRICO (NOVA) -->
+    <!-- ABA HISTÓRICO -->
     <div id="historico" class="content">
         <p style="font-size: 14px; color: #666; margin-top: 0;">Seus turnos recentes registrados:</p>
         <div id="lista-historico"></div>
@@ -171,47 +169,216 @@
     </div>
 
     <script>
-        let dados = JSON.parse(localStorage.getItem('rotaDados')) || {
-            faturamento: 0, km: 0, horas: 0,
-            cfgGasolina: 5.85, cfgConsumo: 35, cfgManutencao: 0.10, cfgMeta: 500,
-            investimentos: [], historico: []
-        };
+        // Função segura para converter números e evitar travamentos na tela
+        const toNumber = (val, defaultVal = 0) => { let n = parseFloat(val); return isNaN(n) ? defaultVal : n; };
+        const mo = (v) => "R$ " + toNumber(v).toFixed(2).replace('.', ',');
 
-        // Prevenção de erros para quem já tinha o app salvo sem o histórico
-        if(!dados.investimentos) dados.investimentos = [];
-        if(!dados.historico) dados.historico = [];
-        if(dados.horas === undefined) dados.horas = 0;
+        // Estrutura blindada para ler os dados
+        let dados = { faturamento: 0, km: 0, horas: 0, cfgGasolina: 5.85, cfgConsumo: 35, cfgManutencao: 0.10, cfgMeta: 500, investimentos: [], historico: [] };
+        
+        try {
+            let dadosRaw = localStorage.getItem('rotaDados');
+            if (dadosRaw) {
+                let parsed = JSON.parse(dadosRaw);
+                dados = { ...dados, ...parsed };
+            }
+        } catch (e) {
+            console.error("Erro ao ler dados da memória. Usando zerados.");
+        }
+
+        // Garante que arrays nunca fiquem nulas e quebrem o código
+        if (!Array.isArray(dados.investimentos)) dados.investimentos = [];
+        if (!Array.isArray(dados.historico)) dados.historico = [];
+
+        function mudarAba(idAba, btn) {
+            try {
+                document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
+                document.getElementById(idAba).classList.add('active');
+                btn.classList.add('active');
+            } catch (e) {
+                console.error("Erro ao mudar aba:", e);
+            }
+        }
 
         function atualizarTela() {
-            let custoGasolina = (dados.km / dados.cfgConsumo) * dados.cfgGasolina;
-            let custoManutencao = dados.km * dados.cfgManutencao;
-            let custoOperacional = custoGasolina + custoManutencao;
-            let lucroOperacional = dados.faturamento - custoOperacional;
-            let totalInvestido = dados.investimentos.reduce((acc, curr) => acc + curr.valor, 0);
-            let saldoCaixa = lucroOperacional - totalInvestido;
-            
-            let porcentagemMeta = Math.min((saldoCaixa / dados.cfgMeta) * 100, 100);
-            if(porcentagemMeta < 0) porcentagemMeta = 0;
+            try {
+                let dGas = toNumber(dados.cfgGasolina, 5.85);
+                let dCon = toNumber(dados.cfgConsumo, 35);
+                let dMan = toNumber(dados.cfgManutencao, 0.10);
+                let dMeta = toNumber(dados.cfgMeta, 500);
+                
+                let custoGasolina = (toNumber(dados.km) / (dCon || 1)) * dGas;
+                let custoManutencao = toNumber(dados.km) * dMan;
+                let custoOperacional = custoGasolina + custoManutencao;
+                let lucroOperacional = toNumber(dados.faturamento) - custoOperacional;
+                
+                let totalInvestido = dados.investimentos.reduce((acc, curr) => acc + toNumber(curr.valor), 0);
+                let saldoCaixa = lucroOperacional - totalInvestido;
+                
+                let porcentagemMeta = Math.min((saldoCaixa / (dMeta || 1)) * 100, 100);
+                if(porcentagemMeta < 0) porcentagemMeta = 0;
 
-            let lucroPorHora = dados.horas > 0 ? (lucroOperacional / dados.horas) : 0;
+                let lucroPorHora = toNumber(dados.horas) > 0 ? (lucroOperacional / toNumber(dados.horas)) : 0;
 
-            const mo = (v) => "R$ " + v.toFixed(2).replace('.', ',');
+                let lblSaldo = document.getElementById('lbl-saldo');
+                lblSaldo.innerText = mo(saldoCaixa);
+                if (saldoCaixa < 0) { lblSaldo.classList.add('negativo'); } else { lblSaldo.classList.remove('negativo'); }
+                
+                document.getElementById('lbl-fat').innerText = "Lucro Op.: " + mo(lucroOperacional);
+                document.getElementById('lbl-custos').innerText = "Equipamentos: " + mo(totalInvestido);
+                document.getElementById('bar-meta').style.width = porcentagemMeta + "%";
+                document.getElementById('lbl-meta').innerText = "Meta Líquida: " + mo(dMeta);
+                document.getElementById('lbl-porcentagem').innerText = porcentagemMeta.toFixed(0) + "% atingido";
 
-            let lblSaldo = document.getElementById('lbl-saldo');
-            lblSaldo.innerText = mo(saldoCaixa);
-            if (saldoCaixa < 0) {
-                lblSaldo.classList.add('negativo');
-            } else {
-                lblSaldo.classList.remove('negativo');
+                document.getElementById('card-fat').innerText = mo(dados.faturamento);
+                document.getElementById('card-custos').innerText = mo(custoOperacional);
+                document.getElementById('card-km').innerText = toNumber(dados.km).toFixed(1).replace('.', ',') + " km";
+                document.getElementById('card-horas').innerText = toNumber(dados.horas).toFixed(1).replace('.', ',') + " h";
+                document.getElementById('card-lucro-hora').innerText = mo(lucroPorHora) + " / h";
+
+                let statusRoi = document.getElementById('status-roi');
+                if (totalInvestido === 0) {
+                    statusRoi.innerText = "Nenhum investimento registrado.";
+                    statusRoi.style.color = "#666";
+                } else if (saldoCaixa < 0) {
+                    let falta = Math.abs(saldoCaixa);
+                    statusRoi.innerText = "Faltam " + mo(falta) + " para recuperar o valor investido.";
+                    statusRoi.style.color = "#d32f2f";
+                } else {
+                    statusRoi.innerText = "Investimentos pagos! Caixa livre: " + mo(saldoCaixa);
+                    statusRoi.style.color = "#2e7d32";
+                }
+
+                let listaInv = document.getElementById('lista-investimentos');
+                listaInv.innerHTML = "";
+                dados.investimentos.forEach((inv, index) => {
+                    let li = document.createElement('li');
+                    li.innerHTML = `
+                        <div><div class="item-nome">${inv.nome}</div><div class="item-valor">${mo(inv.valor)}</div></div>
+                        <button class="btn-excluir" onclick="removerInvestimento(${index})">X</button>
+                    `;
+                    listaInv.appendChild(li);
+                });
+
+                let listaHist = document.getElementById('lista-historico');
+                listaHist.innerHTML = "";
+                if(dados.historico.length === 0) {
+                    listaHist.innerHTML = '<p style="text-align: center; color: #999; margin-top: 40px;">Nenhum turno salvo ainda.</p>';
+                } else {
+                    for(let i = dados.historico.length - 1; i >= 0; i--) {
+                        let t = dados.historico[i];
+                        let tKm = toNumber(t.km);
+                        let tFat = toNumber(t.fat);
+                        let tHoras = toNumber(t.horas);
+                        
+                        let cGas = (tKm / (dCon || 1)) * dGas;
+                        let cMan = tKm * dMan;
+                        let lucroT = tFat - (cGas + cMan);
+                        let lucroH = tHoras > 0 ? (lucroT / tHoras) : 0;
+                        let corLucro = lucroT >= 0 ? '#2e7d32' : '#d32f2f';
+
+                        let div = document.createElement('div');
+                        div.className = 'history-card';
+                        div.innerHTML = `
+                            <div class="history-header">
+                                <span style="font-weight: bold; color: #1a237e;">🕒 ${t.data}</span>
+                                <span style="color: ${corLucro};">Líq: ${mo(lucroT)}</span>
+                            </div>
+                            <div class="history-body">
+                                <span>Fat: ${mo(tFat)}</span>
+                                <span>${tKm.toFixed(1)} km</span>
+                                <span>${tHoras.toFixed(1)} h</span>
+                            </div>
+                            <div class="history-footer" style="color: ${corLucro};">
+                                Rendimento: ${mo(lucroH)} / h
+                            </div>
+                        `;
+                        listaHist.appendChild(div);
+                    }
+                }
+
+                document.getElementById('cfg-gasolina').value = dGas;
+                document.getElementById('cfg-consumo').value = dCon;
+                document.getElementById('cfg-manutencao').value = dMan;
+                document.getElementById('cfg-meta').value = dMeta;
+            } catch(e) {
+                console.error("Erro em atualizarTela:", e);
             }
-            
-            document.getElementById('lbl-fat').innerText = "Lucro Op.: " + mo(lucroOperacional);
-            document.getElementById('lbl-custos').innerText = "Equipamentos: " + mo(totalInvestido);
-            document.getElementById('bar-meta').style.width = porcentagemMeta + "%";
-            document.getElementById('lbl-meta').innerText = "Meta Líquida: " + mo(parseFloat(dados.cfgMeta));
-            document.getElementById('lbl-porcentagem').innerText = porcentagemMeta.toFixed(0) + "% atingido";
+        }
 
-            // Painel
-            document.getElementById('card-fat').innerText = mo(dados.faturamento);
-            document.getElementById('card-custos').innerText = mo(custoOperacional);
-            document.getElementById('card-km').innerText = dados.km.toFixed(1).replace('.', ',') + " km";
+        function salvarTurno() {
+            let fat = parseFloat(document.getElementById('input-fat').value.replace(',', '.'));
+            let km = parseFloat(document.getElementById('input-km').value.replace(',', '.'));
+            let horas = parseFloat(document.getElementById('input-horas').value.replace(',', '.'));
+
+            if(isNaN(fat) || isNaN(km) || isNaN(horas)) { 
+                alert("Preencha faturamento, km e horas trabalhadas."); 
+                return; 
+            }
+
+            let dataAtual = new Date().toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'});
+
+            dados.historico.push({ data: dataAtual, fat: fat, km: km, horas: horas });
+            dados.faturamento += fat;
+            dados.km += km;
+            dados.horas += horas;
+
+            localStorage.setItem('rotaDados', JSON.stringify(dados));
+            
+            document.getElementById('input-fat').value = "";
+            document.getElementById('input-km').value = "";
+            document.getElementById('input-horas').value = "";
+            
+            atualizarTela();
+            mudarAba('historico', document.querySelectorAll('.nav button')[2]);
+        }
+
+        function adicionarInvestimento() {
+            let nome = document.getElementById('inv-nome').value;
+            let valor = parseFloat(document.getElementById('inv-valor').value.replace(',', '.'));
+            if(nome.trim() === "" || isNaN(valor)) { alert("Preencha o nome e o valor."); return; }
+            dados.investimentos.push({ nome: nome, valor: valor });
+            localStorage.setItem('rotaDados', JSON.stringify(dados));
+            document.getElementById('inv-nome').value = "";
+            document.getElementById('inv-valor').value = "";
+            atualizarTela();
+        }
+
+        function removerInvestimento(index) {
+            if(confirm("Remover este equipamento da lista?")) {
+                dados.investimentos.splice(index, 1);
+                localStorage.setItem('rotaDados', JSON.stringify(dados));
+                atualizarTela();
+            }
+        }
+
+        function salvarAjustes() {
+            dados.cfgGasolina = parseFloat(document.getElementById('cfg-gasolina').value) || 5.85;
+            dados.cfgConsumo = parseFloat(document.getElementById('cfg-consumo').value) || 35;
+            dados.cfgManutencao = parseFloat(document.getElementById('cfg-manutencao').value) || 0.10;
+            dados.cfgMeta = parseFloat(document.getElementById('cfg-meta').value) || 500;
+            localStorage.setItem('rotaDados', JSON.stringify(dados));
+            atualizarTela();
+            alert("Configurações salvas!");
+        }
+
+        function zerarGanhos() {
+            if(confirm("Tem certeza? Isso apaga todos os ganhos e o histórico de turnos do mês para começar um novo.")) {
+                dados.faturamento = 0;
+                dados.km = 0;
+                dados.horas = 0;
+                dados.historico = []; 
+                localStorage.setItem('rotaDados', JSON.stringify(dados));
+                atualizarTela();
+            }
+        }
+
+        // Tenta iniciar a tela
+        window.onload = function() {
+            atualizarTela();
+        };
+
+    </script>
+</body>
+</html>
