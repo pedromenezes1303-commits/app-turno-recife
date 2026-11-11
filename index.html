@@ -17,8 +17,10 @@
         .progress-fill { background: #2e7d32; height: 100%; width: 0%; transition: width 0.3s; }
         .meta-text { display: flex; justify-content: space-between; font-size: 12px; color: #666; }
         
-        .nav { display: flex; overflow-x: auto; background: #fff; padding: 10px; gap: 10px; border-bottom: 1px solid #eee; }
-        .nav button { padding: 8px 16px; border: none; background: transparent; color: #666; font-weight: bold; border-radius: 20px; cursor: pointer; white-space: nowrap; }
+        /* Menu com barra de rolagem horizontal invisível */
+        .nav { display: flex; overflow-x: auto; background: #fff; padding: 10px; gap: 10px; border-bottom: 1px solid #eee; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+        .nav::-webkit-scrollbar { display: none; }
+        .nav button { padding: 8px 16px; border: none; background: transparent; color: #666; font-weight: bold; border-radius: 20px; cursor: pointer; flex-shrink: 0; }
         .nav button.active { background: #f0f0f0; color: #000; }
         
         .content { padding: 20px; display: none; }
@@ -39,6 +41,12 @@
         .item-nome { font-size: 14px; font-weight: bold; }
         .item-valor { font-size: 14px; color: #d32f2f; font-weight: bold; }
         .btn-excluir { background: #ffebee; color: #d32f2f; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+        
+        /* Estilos do Histórico */
+        .history-card { background: #fff; padding: 15px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .history-header { display: flex; justify-content: space-between; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; margin-bottom: 8px; font-size: 14px; }
+        .history-body { display: flex; justify-content: space-between; font-size: 13px; color: #666; }
+        .history-footer { font-size: 13px; font-weight: bold; text-align: right; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -61,10 +69,12 @@
         </div>
     </div>
 
+    <!-- Navegação rolável lateralmente -->
     <div class="nav">
         <button class="active" onclick="mudarAba('painel', this)">Painel</button>
-        <button onclick="mudarAba('lancar', this)">Lançar turno</button>
-        <button onclick="mudarAba('investimentos', this)">Investimentos</button>
+        <button onclick="mudarAba('lancar', this)">Lançar</button>
+        <button onclick="mudarAba('historico', this)">Histórico</button>
+        <button onclick="mudarAba('investimentos', this)">Equipamentos</button>
         <button onclick="mudarAba('ajustes', this)">Ajustes</button>
     </div>
 
@@ -88,11 +98,11 @@
                 <div class="card-value" id="card-horas">0.0 h</div>
             </div>
             <div class="card" style="grid-column: span 2; background: #e8f5e9; border-color: #a5d6a7;">
-                <div class="card-title" style="color: #2e7d32;">Lucro Líquido por Hora (R$/h)</div>
+                <div class="card-title" style="color: #2e7d32;">Média: Lucro Líquido por Hora</div>
                 <div class="card-value" id="card-lucro-hora" style="font-size: 22px; color: #2e7d32;">R$ 0,00 / h</div>
             </div>
         </div>
-        <button class="btn-primary" style="background: #d32f2f;" onclick="zerarGanhos()">Zerar Mês (Ganhos/Km/Horas)</button>
+        <button class="btn-primary" style="background: #d32f2f;" onclick="zerarGanhos()">Zerar Mês (Limpa Ganhos e Histórico)</button>
     </div>
 
     <!-- ABA LANÇAR TURNO -->
@@ -110,6 +120,12 @@
             <input type="number" id="input-horas" placeholder="Ex: 3" inputmode="decimal">
         </div>
         <button class="btn-primary" onclick="salvarTurno()">Salvar Turno</button>
+    </div>
+
+    <!-- ABA HISTÓRICO (NOVA) -->
+    <div id="historico" class="content">
+        <p style="font-size: 14px; color: #666; margin-top: 0;">Seus turnos recentes registrados:</p>
+        <div id="lista-historico"></div>
     </div>
 
     <!-- ABA INVESTIMENTOS -->
@@ -158,10 +174,12 @@
         let dados = JSON.parse(localStorage.getItem('rotaDados')) || {
             faturamento: 0, km: 0, horas: 0,
             cfgGasolina: 5.85, cfgConsumo: 35, cfgManutencao: 0.10, cfgMeta: 500,
-            investimentos: []
+            investimentos: [], historico: []
         };
 
+        // Prevenção de erros para quem já tinha o app salvo sem o histórico
         if(!dados.investimentos) dados.investimentos = [];
+        if(!dados.historico) dados.historico = [];
         if(dados.horas === undefined) dados.horas = 0;
 
         function atualizarTela() {
@@ -175,7 +193,6 @@
             let porcentagemMeta = Math.min((saldoCaixa / dados.cfgMeta) * 100, 100);
             if(porcentagemMeta < 0) porcentagemMeta = 0;
 
-            // Cálculo do ganho por hora (lucro operacional dividido pelas horas totais na pista)
             let lucroPorHora = dados.horas > 0 ? (lucroOperacional / dados.horas) : 0;
 
             const mo = (v) => "R$ " + v.toFixed(2).replace('.', ',');
@@ -198,116 +215,3 @@
             document.getElementById('card-fat').innerText = mo(dados.faturamento);
             document.getElementById('card-custos').innerText = mo(custoOperacional);
             document.getElementById('card-km').innerText = dados.km.toFixed(1).replace('.', ',') + " km";
-            document.getElementById('card-horas').innerText = dados.horas.toFixed(1).replace('.', ',') + " h";
-            document.getElementById('card-lucro-hora').innerText = mo(lucroPorHora) + " / h";
-
-            // Status ROI
-            let statusRoi = document.getElementById('status-roi');
-            if (totalInvestido === 0) {
-                statusRoi.innerText = "Nenhum investimento registrado.";
-                statusRoi.style.color = "#666";
-            } else if (saldoCaixa < 0) {
-                let falta = Math.abs(saldoCaixa);
-                statusRoi.innerText = "Faltam " + mo(falta) + " para recuperar o valor investido.";
-                statusRoi.style.color = "#d32f2f";
-            } else {
-                statusRoi.innerText = "Investimentos 100% pagos! Caixa livre de " + mo(saldoCaixa) + ".";
-                statusRoi.style.color = "#2e7d32";
-            }
-
-            // Lista de investimentos
-            let lista = document.getElementById('lista-investimentos');
-            lista.innerHTML = "";
-            dados.investimentos.forEach((inv, index) => {
-                let li = document.createElement('li');
-                li.innerHTML = `
-                    <div>
-                        <div class="item-nome">${inv.nome}</div>
-                        <div class="item-valor">${mo(inv.valor)}</div>
-                    </div>
-                    <button class="btn-excluir" onclick="removerInvestimento(${index})">X</button>
-                `;
-                lista.appendChild(li);
-            });
-
-            // Ajustes
-            document.getElementById('cfg-gasolina').value = dados.cfgGasolina;
-            document.getElementById('cfg-consumo').value = dados.cfgConsumo;
-            document.getElementById('cfg-manutencao').value = dados.cfgManutencao;
-            document.getElementById('cfg-meta').value = dados.cfgMeta;
-        }
-
-        function salvarTurno() {
-            let fat = parseFloat(document.getElementById('input-fat').value.replace(',', '.'));
-            let km = parseFloat(document.getElementById('input-km').value.replace(',', '.'));
-            let horas = parseFloat(document.getElementById('input-horas').value.replace(',', '.'));
-
-            if(isNaN(fat) || isNaN(km) || isNaN(horas)) { 
-                alert("Preencha faturamento, km e horas trabalhadas."); 
-                return; 
-            }
-
-            dados.faturamento += fat;
-            dados.km += km;
-            dados.horas += horas;
-
-            localStorage.setItem('rotaDados', JSON.stringify(dados));
-            
-            document.getElementById('input-fat').value = "";
-            document.getElementById('input-km').value = "";
-            document.getElementById('input-horas').value = "";
-            
-            atualizarTela();
-            mudarAba('painel', document.querySelector('.nav button'));
-        }
-
-        function adicionarInvestimento() {
-            let nome = document.getElementById('inv-nome').value;
-            let valor = parseFloat(document.getElementById('inv-valor').value.replace(',', '.'));
-            if(nome.trim() === "" || isNaN(valor)) { alert("Preencha o nome e o valor do equipamento."); return; }
-            dados.investimentos.push({ nome: nome, valor: valor });
-            localStorage.setItem('rotaDados', JSON.stringify(dados));
-            document.getElementById('inv-nome').value = "";
-            document.getElementById('inv-valor').value = "";
-            atualizarTela();
-        }
-
-        function removerInvestimento(index) {
-            if(confirm("Remover este equipamento da lista?")) {
-                dados.investimentos.splice(index, 1);
-                localStorage.setItem('rotaDados', JSON.stringify(dados));
-                atualizarTela();
-            }
-        }
-
-        function salvarAjustes() {
-            dados.cfgGasolina = parseFloat(document.getElementById('cfg-gasolina').value);
-            dados.cfgConsumo = parseFloat(document.getElementById('cfg-consumo').value);
-            dados.cfgManutencao = parseFloat(document.getElementById('cfg-manutencao').value);
-            dados.cfgMeta = parseFloat(document.getElementById('cfg-meta').value);
-            localStorage.setItem('rotaDados', JSON.stringify(dados));
-            atualizarTela();
-            alert("Configurações salvas!");
-        }
-
-        function zerarGanhos() {
-            if(confirm("Tem certeza? Isso zera ganhos, km e horas do mês, mantendo investimentos e configurações.")) {
-                dados.faturamento = 0;
-                dados.km = 0;
-                dados.horas = 0;
-                localStorage.setItem('rotaDados', JSON.stringify(dados));
-                atualizarTela();
-            }
-        }
-
-        function mudarAba(idAba, btn) {
-            document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
-            document.getElementById(idAba).classList.add('active');
-            btn.classList.add('active');
-        }
-
-        atualizarTela();
-    </script>
-</body>
-</html>
